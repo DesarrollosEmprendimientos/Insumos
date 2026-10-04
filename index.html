@@ -1,0 +1,26 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer"><meta name="theme-color" content="#052d4b">
+<title>Restaurante del Parque – Pedidos</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css"></head><body>
+<section id="v-login" class="view center" hidden>
+  <img src="icons/logo.png" alt="Restaurante del Parque" class="logo">
+  <h1>Pedido de provisiones</h1>
+  <div class="card"><label>Usuario<input id="u" autocomplete="username" autocapitalize="none"></label>
+  <label>Contraseña<input id="p" type="password" autocomplete="current-password"></label>
+  <p id="err" class="err" role="alert"></p><button id="go" class="btn">Ingresar</button></div>
+</section>
+<section id="v-cats" class="view" hidden>
+  <header class="bar"><div><b class="serif">Categorías</b><small id="who"></small></div><button id="out" class="ghost">Salir</button></header>
+  <div id="grid" class="grid"></div>
+</section>
+<section id="v-items" class="view" hidden>
+  <header class="bar"><button id="back" class="ghost">‹ Categorías</button><b id="ct" class="serif"></b></header>
+  <div id="list" class="list"></div>
+  <footer class="dock"><button id="send" class="btn">ENVIAR PEDIDO <span id="cnt"></span></button></footer>
+</section>
+<div id="toast" class="toast" role="status"></div>
+<script src="js/config.js"></script><script src="js/api.js"></script><script src="js/app.js"></script></body></html>
