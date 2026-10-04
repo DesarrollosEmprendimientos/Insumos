@@ -1,9 +1,9 @@
 (() => {
   const $ = id => document.getElementById(id), LS = localStorage;
   const S = { token: LS.rdp_t || '', user: LS.rdp_u || '', cats: [], cur: null, qty: JSON.parse(LS.rdp_q || '{}') };
-  const key = (c, i) => c + '|' + i, show = v => ['login', 'cats', 'items'].forEach(n => $('v-' + n).hidden = n !== v);
+  const key = (c, i) => c + '|' + i, show = v => ['login', 'cats', 'items', 'prev', 'done'].forEach(n => $('v-' + n).hidden = n !== v);
   const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2200); };
-  const save = () => LS.rdp_q = JSON.stringify(S.qty);
+  const save = () => { LS.rdp_q = JSON.stringify(S.qty); LS.removeItem('rdp_oid'); };
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) && n > 0 ? Math.round(n * 1000) / 1000 : 0; };
   const countCat = c => c.items.filter(i => S.qty[key(c.name, i.name)] > 0).length;
@@ -15,7 +15,7 @@
     try { const r = await api('catalog', { token: S.token }); S.cats = r.data.categories;
       // limpiar cantidades de artículos que ya no existen en la planilla
       const ok = new Set(S.cats.flatMap(c => c.items.map(i => key(c.name, i.name))));
-      Object.keys(S.qty).forEach(k => ok.has(k) || delete S.qty[k]); save();
+      let ch = false; Object.keys(S.qty).forEach(k => ok.has(k) || (delete S.qty[k], ch = true)); if (ch) save();
       if (S.cur && !S.cats.find(c => c.name === S.cur)) { S.cur = null; show('cats'); }
       drawCats(); S.cur && drawItems();
     } catch (e) { fail(e); }
@@ -37,7 +37,7 @@
       q.append(m, inp, p); card.append(el('b', '', i.name), el('small', '', i.supplier), q, el('div', 'unit', i.unit)); l.append(card); });
     total();
   }
-  function total() { const n = Object.keys(S.qty).length; $('cnt').textContent = n ? '(' + n + ')' : ''; }
+  function total() { const n = Object.keys(S.qty).length; document.querySelectorAll('.cnt').forEach(e => e.textContent = n ? '(' + n + ')' : ''); }
 
   $('go').onclick = async () => {
     const b = $('go'); b.disabled = true; $('err').textContent = '';
@@ -49,7 +49,27 @@
   $('p').onkeydown = e => e.key === 'Enter' && $('go').click();
   $('out').onclick = () => { if (Object.keys(S.qty).length && !confirm('Hay cantidades cargadas. ¿Salir igual?')) return; S.qty = {}; save(); logout(); };
   $('back').onclick = () => { S.cur = null; drawCats(); show('cats'); };
-  $('send').onclick = () => toast('El envío del pedido se habilita en la etapa 2');
+  const lines = () => S.cats.flatMap(c => c.items.filter(i => S.qty[key(c.name, i.name)] > 0).map(i => ({ cat: c.name, name: i.name, unit: i.unit, supplier: i.supplier, qty: S.qty[key(c.name, i.name)] })));
+  document.querySelectorAll('.send').forEach(b => b.onclick = () => {
+    const L = lines(); if (!L.length) return toast('Todavía no cargaste ninguna cantidad');
+    const box = $('plist'); box.replaceChildren(); let last = '';
+    L.forEach(l => { if (l.cat !== last) { box.append(el('h3', '', l.cat)); last = l.cat; }
+      const r = el('div', 'prow'); r.append(el('span', '', l.name), el('b', '', l.qty + ' ' + l.unit)); box.append(r); });
+    show('prev'); scrollTo(0, 0); });
+  $('edit').onclick = () => { drawCats(); show(S.cur ? 'items' : 'cats'); };
+  $('acc').onclick = async () => {
+    const b = $('acc'); b.disabled = true;
+    try { LS.rdp_oid = LS.rdp_oid || crypto.randomUUID();
+      const o = (await api('submit', { token: S.token, id: LS.rdp_oid, items: lines() })).order;
+      S.qty = {}; LS.removeItem('rdp_q'); LS.removeItem('rdp_oid'); S.cur = null;
+      $('dmsg').textContent = 'Registrado el ' + o.date + ' a las ' + o.time + ' por ' + o.user + ' (columna ' + o.column + ' de PEDIDOS).';
+      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done');
+    } catch (e) {
+      if (e.message === 'session') fail(e);
+      else if (e.message === 'stale') { toast('La lista cambió en la planilla. Revisá tu pedido.'); await load(); drawCats(); show('cats'); }
+      else toast('No se pudo enviar. Tu pedido sigue guardado, reintentá.'); }
+    b.disabled = false; };
+  $('new').onclick = () => { drawCats(); show('cats'); };
   document.addEventListener('visibilitychange', () => !document.hidden && S.token && load());
   setInterval(() => !document.hidden && S.token && load(), 60000);
 

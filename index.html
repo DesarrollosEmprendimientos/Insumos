@@ -16,11 +16,21 @@
 <section id="v-cats" class="view" hidden>
   <header class="bar"><div><b class="serif">Categorías</b><small id="who"></small></div><button id="out" class="ghost">Salir</button></header>
   <div id="grid" class="grid"></div>
+  <footer class="dock"><button class="btn send">ENVIAR PEDIDO <span class="cnt"></span></button></footer>
 </section>
 <section id="v-items" class="view" hidden>
   <header class="bar"><button id="back" class="ghost">‹ Categorías</button><b id="ct" class="serif"></b></header>
   <div id="list" class="list"></div>
-  <footer class="dock"><button id="send" class="btn">ENVIAR PEDIDO <span id="cnt"></span></button></footer>
+  <footer class="dock"><button class="btn send">ENVIAR PEDIDO <span class="cnt"></span></button></footer>
+</section>
+<section id="v-prev" class="view" hidden>
+  <header class="bar"><b class="serif">Revisá tu pedido</b></header>
+  <div id="plist" class="plist"></div>
+  <footer class="dock two"><button id="edit" class="btn alt">Editar</button><button id="acc" class="btn">Aceptar y enviar</button></footer>
+</section>
+<section id="v-done" class="view center" hidden>
+  <img src="icons/logo.png" alt="" class="logo"><h1>¡Pedido enviado!</h1>
+  <p id="dmsg" class="dmsg"></p><p id="dwarn" class="err"></p><button id="new" class="btn">Nuevo pedido</button>
 </section>
 <div id="toast" class="toast" role="status"></div>
 <script src="js/config.js"></script><script src="js/api.js"></script><script src="js/app.js"></script></body></html>
