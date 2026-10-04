@@ -30,6 +30,9 @@ window.docs = (() => {
   const stamp = o => o.date.split('/').reverse().join('-') + '_' + o.time.replace(':', '');
   return {
     async pdf(o, token) { const r = await api('pdf', { token, id: o.id }); download(b64blob(r.b64, 'application/pdf'), r.name); },
+    async mail(o, token) { const blob = await image(o);
+      const b64 = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(String(f.result).split(',')[1]); f.onerror = no; f.readAsDataURL(blob); });
+      return api('mail', { token, id: o.id, png: b64 }); },
     async img(o) { download(await image(o), 'Pedido_' + stamp(o) + '.png'); }
   };
 })();

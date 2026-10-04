@@ -63,12 +63,17 @@
       const o = (await api('submit', { token: S.token, id: LS.rdp_oid, items: lines() })).order;
       S.qty = {}; LS.removeItem('rdp_q'); LS.removeItem('rdp_oid'); S.cur = null; S.order = o;
       $('dmsg').textContent = 'Registrado el ' + o.date + ' a las ' + o.time + ' por ' + o.user + ' (columna ' + o.column + ' de PEDIDOS).';
-      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done');
+      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done'); sendMail();
     } catch (e) {
       if (e.message === 'session') fail(e);
       else if (e.message === 'stale') { toast('La lista cambió en la planilla. Revisá tu pedido.'); await load(); drawCats(); show('cats'); }
       else toast('No se pudo enviar. Tu pedido sigue guardado, reintentá.'); }
     b.disabled = false; };
+  const sendMail = async () => { $('rmail').hidden = true; $('dmail').textContent = 'Enviando por mail…';
+    try { await docs.mail(S.order, S.token); $('dmail').textContent = 'Enviado por mail con PDF e imagen.'; }
+    catch (e) { if (e.message === 'session') return fail(e);
+      $('dmail').textContent = 'El pedido quedó registrado, pero no se pudo enviar el mail.'; $('rmail').hidden = e.message === 'expired'; } };
+  $('rmail').onclick = sendMail;
   const busy = (id, fn) => $(id).onclick = async () => { const b = $(id), t = b.textContent; b.disabled = true; b.textContent = 'Generando…';
     try { await fn(); } catch (e) { e.message === 'session' ? fail(e) : toast('No se pudo generar. Reintentá.'); } b.disabled = false; b.textContent = t; };
   busy('dpdf', () => docs.pdf(S.order, S.token)); busy('dimg', () => docs.img(S.order));
