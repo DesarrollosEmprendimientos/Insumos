@@ -30,3 +30,6 @@ input{font:inherit;font-size:16px;padding:12px;border:2px solid var(--navy2);bor
 .dock.two{gap:10px}.dock.two .btn{flex:1;width:auto}.btn.alt{background:var(--navy);box-shadow:none}
 .dmsg{text-align:center;max-width:22rem;margin:0}
 .acts{display:grid;gap:10px;width:min(20rem,100%)}.acts .btn{width:100%}
+select{font:inherit;font-size:16px;padding:12px;border:2px solid var(--navy2);border-radius:14px;background:var(--cream2);color:var(--navy)}
+.acts2{display:flex;gap:10px}.acts2 .btn{flex:1;padding:12px}.pchoose{margin-top:22px;display:grid;gap:8px}
+.chk{display:flex;align-items:center;gap:10px}.chk input{width:22px;height:22px;padding:0}

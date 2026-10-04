@@ -1,7 +1,7 @@
 (() => {
   const $ = id => document.getElementById(id), LS = localStorage;
   const S = { token: LS.rdp_t || '', user: LS.rdp_u || '', cats: [], cur: null, qty: JSON.parse(LS.rdp_q || '{}') };
-  const key = (c, i) => c + '|' + i, show = v => ['login', 'cats', 'items', 'prev', 'done'].forEach(n => $('v-' + n).hidden = n !== v);
+  const key = (c, i) => c + '|' + i, show = v => ['login', 'cats', 'items', 'prev', 'done', 'cfg'].forEach(n => $('v-' + n).hidden = n !== v);
   const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2200); };
   const save = () => { LS.rdp_q = JSON.stringify(S.qty); LS.removeItem('rdp_oid'); };
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -50,8 +50,9 @@
   $('out').onclick = () => { if (Object.keys(S.qty).length && !confirm('Hay cantidades cargadas. ¿Salir igual?')) return; S.qty = {}; save(); logout(); };
   $('back').onclick = () => { S.cur = null; drawCats(); show('cats'); };
   const lines = () => S.cats.flatMap(c => c.items.filter(i => S.qty[key(c.name, i.name)] > 0).map(i => ({ cat: c.name, name: i.name, unit: i.unit, supplier: i.supplier, qty: S.qty[key(c.name, i.name)] })));
-  document.querySelectorAll('.send').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.send').forEach(b => b.onclick = async () => {
     const L = lines(); if (!L.length) return toast('Todavía no cargaste ninguna cantidad');
+    await loadPrinters(); drawChoose();
     const box = $('plist'); box.replaceChildren(); let last = '';
     L.forEach(l => { if (l.cat !== last) { box.append(el('h3', '', l.cat)); last = l.cat; }
       const r = el('div', 'prow'); r.append(el('span', '', l.name), el('b', '', l.qty + ' ' + l.unit)); box.append(r); });
@@ -63,12 +64,47 @@
       const o = (await api('submit', { token: S.token, id: LS.rdp_oid, items: lines() })).order;
       S.qty = {}; LS.removeItem('rdp_q'); LS.removeItem('rdp_oid'); S.cur = null; S.order = o;
       $('dmsg').textContent = 'Registrado el ' + o.date + ' a las ' + o.time + ' por ' + o.user + ' (columna ' + o.column + ' de PEDIDOS).';
-      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done'); sendMail();
+      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done'); sendMail(); sendPrint();
     } catch (e) {
       if (e.message === 'session') fail(e);
       else if (e.message === 'stale') { toast('La lista cambió en la planilla. Revisá tu pedido.'); await load(); drawCats(); show('cats'); }
       else toast('No se pudo enviar. Tu pedido sigue guardado, reintentá.'); }
     b.disabled = false; };
+  const loadPrinters = async () => { try { S.printers = (await api('printers', { token: S.token })).printers; } catch (e) { if (e.message === 'session') fail(e); S.printers = S.printers || []; } };
+  function drawChoose() {
+    const box = $('pchoose'); box.replaceChildren();
+    const saved = JSON.parse(LS.rdp_ps || 'null'), ids = S.printers.map(p => p.id);
+    S.sel = (saved || (ids.length === 1 ? ids : [])).filter(id => ids.includes(id));
+    if (!ids.length) { box.append(el('p', 'dmsg', 'No hay impresoras configuradas (⚙ en Categorías).')); return; }
+    box.append(el('b', '', 'Imprimir ticket en:'));
+    S.printers.forEach(p => { const l = el('label', 'chk'), c = el('input'); c.type = 'checkbox'; c.checked = S.sel.includes(p.id);
+      c.onchange = () => { S.sel = ids.filter(id => id === p.id ? c.checked : S.sel.includes(id)); LS.rdp_ps = JSON.stringify(S.sel); };
+      l.append(c, el('span', '', p.name + ' (' + p.width + ' mm)')); box.append(l); });
+  }
+  const sendPrint = async () => { const t = $('dprint'); $('rprint').hidden = true;
+    if (!S.sel || !S.sel.length) { t.textContent = ''; return; }
+    t.textContent = 'Enviando a imprimir…';
+    try { const r = await api('print', { token: S.token, id: S.order.id, printers: S.sel });
+      t.textContent = 'Ticket en cola para: ' + r.names.join(', ') + '. Sale cuando la PC de la impresora esté encendida.'; }
+    catch (e) { if (e.message === 'session') return fail(e); t.textContent = 'No se pudo encolar el ticket.'; $('rprint').hidden = e.message === 'expired'; } };
+  $('rprint').onclick = sendPrint;
+  function drawCfg() {
+    const box = $('cfgl'); box.replaceChildren();
+    const card = p => { const c = el('div', 'item'), n = el('input'), w = el('select'), k = el('input'), s = el('button', 'btn', 'Guardar'), row = el('div', 'acts2');
+      n.value = p.name || ''; n.placeholder = 'Nombre (ej. Cocina)'; n.maxLength = 30; n.setAttribute('aria-label', 'Nombre');
+      [58, 80].forEach(v => { const o = el('option', '', 'Papel de ' + v + ' mm'); o.value = v; w.append(o); }); w.value = p.width || 80;
+      k.type = 'number'; k.min = 1; k.max = 5; k.value = p.copies || 1; k.setAttribute('aria-label', 'Copias');
+      s.onclick = async () => { try { await api('printerSave', { token: S.token, printer: { id: p.id, name: n.value, width: Number(w.value), copies: Number(k.value) } });
+        toast('Guardada'); await loadPrinters(); drawCfg(); } catch (e) { e.message === 'session' ? fail(e) : toast(e.message === 'dup_name' ? 'Ya existe una impresora con ese nombre' : 'Revisá los datos'); } };
+      row.append(s);
+      if (p.id) { const d = el('button', 'btn alt', 'Eliminar'); d.onclick = async () => { if (!confirm('¿Eliminar "' + p.name + '"?')) return;
+        try { await api('printerDelete', { token: S.token, id: p.id }); await loadPrinters(); drawCfg(); } catch (e) { toast('No se pudo eliminar'); } }; row.append(d); }
+      c.append(n, w, el('small', '', 'Copias por pedido'), k, row); return c; };
+    S.printers.forEach(p => box.append(card(p)));
+    const add = el('button', 'btn alt', '+ Agregar impresora'); add.onclick = () => { add.before(card({})); add.remove(); }; box.append(add);
+  }
+  $('gear').onclick = async () => { await loadPrinters(); drawCfg(); show('cfg'); };
+  $('cfgb').onclick = () => { drawCats(); show('cats'); };
   const sendMail = async () => { $('rmail').hidden = true; $('dmail').textContent = 'Enviando por mail…';
     try { await docs.mail(S.order, S.token); $('dmail').textContent = 'Enviado por mail con PDF e imagen.'; }
     catch (e) { if (e.message === 'session') return fail(e);
