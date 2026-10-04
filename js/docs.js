@@ -4,10 +4,15 @@ window.docs = (() => {
   function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
   function b64blob(b64, type) { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Blob([u], { type }); }
   function loadImg(src) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; }); }
+  function wrapNote(c, text, maxW) { const out = [];
+    text.split('\n').forEach(par => { let l = ''; par.split(/\s+/).filter(Boolean).forEach(w => { const t = l ? l + ' ' + w : w; if (c.measureText(t).width > maxW && l) { out.push(l); l = w; } else l = t; }); out.push(l); });
+    return out; }
   async function image(o) {
     const W = 800, P = 32, CAT = 44, ROW = 46, groups = [];
     o.lines.forEach(l => { let g = groups.find(x => x.c === l.cat); if (!g) groups.push(g = { c: l.cat, r: [] }); g.r.push(l); });
-    const H = 210 + groups.reduce((s, g) => s + CAT + g.r.length * ROW + 14, 0) + 20, S = 2;
+    const mc = document.createElement('canvas').getContext('2d'); mc.font = '600 15px Montserrat, Arial, sans-serif';
+    const nl = o.note ? wrapNote(mc, 'Nota: ' + o.note, W - 2 * P - 24) : [], NB = nl.length ? nl.length * 22 + 26 : 0;
+    const H = 210 + NB + groups.reduce((s, g) => s + CAT + g.r.length * ROW + 14, 0) + 20, S = 2;
     const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
     const x = cv.getContext('2d'); x.scale(S, S);
     x.fillStyle = '#fefae8'; x.fillRect(0, 0, W, H);
@@ -17,6 +22,8 @@ window.docs = (() => {
     x.fillStyle = '#052d4b'; x.font = '600 16px Montserrat, Arial, sans-serif';
     x.fillText('Fecha y hora: ' + o.date + ' ' + o.time + ' hs', P, 152); x.fillText('Solicitó: ' + o.user, P, 178);
     let y = 200;
+    if (nl.length) { x.strokeStyle = '#ac4c00'; x.lineWidth = 2; x.strokeRect(P, y, W - 2 * P, NB - 10); x.fillStyle = '#052d4b'; x.font = '600 15px Montserrat, Arial, sans-serif';
+      nl.forEach((t, i) => x.fillText(t, P + 12, y + 24 + i * 22, W - 2 * P - 24)); y += NB + 6; x.lineWidth = 1; }
     groups.forEach(g => {
       x.fillStyle = '#052d4b'; x.fillRect(P, y, W - 2 * P, CAT); x.fillStyle = '#fefae8'; x.font = '700 18px Montserrat, Arial, sans-serif'; x.fillText(g.c, P + 12, y + 29, W - 2 * P - 24); y += CAT;
       g.r.forEach(l => {

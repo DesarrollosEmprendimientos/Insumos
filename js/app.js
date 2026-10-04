@@ -52,19 +52,19 @@
   const lines = () => S.cats.flatMap(c => c.items.filter(i => S.qty[key(c.name, i.name)] > 0).map(i => ({ cat: c.name, name: i.name, unit: i.unit, supplier: i.supplier, qty: S.qty[key(c.name, i.name)] })));
   document.querySelectorAll('.send').forEach(b => b.onclick = async () => {
     const L = lines(); if (!L.length) return toast('Todavía no cargaste ninguna cantidad');
-    await loadPrinters(); drawChoose();
+    await loadPrinters(); drawChoose(); $('note').value = S.note || ''; $('mailchk').checked = LS.rdp_mail !== '0';
     const box = $('plist'); box.replaceChildren(); let last = '';
     L.forEach(l => { if (l.cat !== last) { box.append(el('h3', '', l.cat)); last = l.cat; }
       const r = el('div', 'prow'); r.append(el('span', '', l.name), el('b', '', l.qty + ' ' + l.unit)); box.append(r); });
     show('prev'); scrollTo(0, 0); });
   $('edit').onclick = () => { drawCats(); show(S.cur ? 'items' : 'cats'); };
   $('acc').onclick = async () => {
-    const b = $('acc'); b.disabled = true;
+    const b = $('acc'); b.disabled = true; S.mail = $('mailchk').checked;
     try { LS.rdp_oid = LS.rdp_oid || crypto.randomUUID();
-      const o = (await api('submit', { token: S.token, id: LS.rdp_oid, items: lines() })).order;
+      const o = (await api('submit', { token: S.token, id: LS.rdp_oid, items: lines(), note: $('note').value })).order;
       S.qty = {}; LS.removeItem('rdp_q'); LS.removeItem('rdp_oid'); S.cur = null; S.order = o;
       $('dmsg').textContent = 'Registrado el ' + o.date + ' a las ' + o.time + ' por ' + o.user + ' (columna ' + o.column + ' de PEDIDOS).';
-      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done'); sendMail(); sendPrint();
+      $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; S.note = ''; show('done'); S.mail ? sendMail() : mailSkipped(); sendPrint();
     } catch (e) {
       if (e.message === 'session') fail(e);
       else if (e.message === 'stale') { toast('La lista cambió en la planilla. Revisá tu pedido.'); await load(); drawCats(); show('cats'); }
@@ -108,7 +108,9 @@
   const sendMail = async () => { $('rmail').hidden = true; $('dmail').textContent = 'Enviando por mail…';
     try { await docs.mail(S.order, S.token); $('dmail').textContent = 'Enviado por mail con PDF e imagen.'; }
     catch (e) { if (e.message === 'session') return fail(e);
-      $('dmail').textContent = 'El pedido quedó registrado, pero no se pudo enviar el mail.'; $('rmail').hidden = e.message === 'expired'; } };
+      $('dmail').textContent = 'El pedido quedó registrado, pero no se pudo enviar el mail.'; $('rmail').textContent = 'Reintentar envío por correo'; $('rmail').hidden = e.message === 'expired'; } };
+  const mailSkipped = () => { $('dmail').textContent = 'No se envió por correo.'; $('rmail').textContent = 'Enviar por correo ahora'; $('rmail').hidden = false; };
+  $('note').oninput = () => S.note = $('note').value; $('mailchk').onchange = () => LS.rdp_mail = $('mailchk').checked ? '1' : '0';
   $('rmail').onclick = sendMail;
   const busy = (id, fn) => $(id).onclick = async () => { const b = $(id), t = b.textContent; b.disabled = true; b.textContent = 'Generando…';
     try { await fn(); } catch (e) { e.message === 'session' ? fail(e) : toast('No se pudo generar. Reintentá.'); } b.disabled = false; b.textContent = t; };
