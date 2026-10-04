@@ -61,7 +61,7 @@
     const b = $('acc'); b.disabled = true;
     try { LS.rdp_oid = LS.rdp_oid || crypto.randomUUID();
       const o = (await api('submit', { token: S.token, id: LS.rdp_oid, items: lines() })).order;
-      S.qty = {}; LS.removeItem('rdp_q'); LS.removeItem('rdp_oid'); S.cur = null;
+      S.qty = {}; LS.removeItem('rdp_q'); LS.removeItem('rdp_oid'); S.cur = null; S.order = o;
       $('dmsg').textContent = 'Registrado el ' + o.date + ' a las ' + o.time + ' por ' + o.user + ' (columna ' + o.column + ' de PEDIDOS).';
       $('dwarn').textContent = o.missing.length ? 'No se encontraron en PEDIDOS: ' + o.missing.join(', ') : ''; show('done');
     } catch (e) {
@@ -69,6 +69,9 @@
       else if (e.message === 'stale') { toast('La lista cambió en la planilla. Revisá tu pedido.'); await load(); drawCats(); show('cats'); }
       else toast('No se pudo enviar. Tu pedido sigue guardado, reintentá.'); }
     b.disabled = false; };
+  const busy = (id, fn) => $(id).onclick = async () => { const b = $(id), t = b.textContent; b.disabled = true; b.textContent = 'Generando…';
+    try { await fn(); } catch (e) { e.message === 'session' ? fail(e) : toast('No se pudo generar. Reintentá.'); } b.disabled = false; b.textContent = t; };
+  busy('dpdf', () => docs.pdf(S.order, S.token)); busy('dimg', () => docs.img(S.order));
   $('new').onclick = () => { drawCats(); show('cats'); };
   document.addEventListener('visibilitychange', () => !document.hidden && S.token && load());
   setInterval(() => !document.hidden && S.token && load(), 60000);
